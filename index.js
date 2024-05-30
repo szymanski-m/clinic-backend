@@ -27,8 +27,17 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+});
+
 // Endpoint rejestracji
 app.post('/register', async (req, res) => {
+    console.log(req)
+    console.log(req.body)
+    console.log(req.query)
     const { email, password, name, surname, birth_date, address, phone } = req.body;
 
     if (email && password) {
@@ -64,11 +73,22 @@ app.post('/login', async (req, res) => {
         try {
             // Pobieranie użytkownika z bazy danych
             const [user] = await db.execute(`SELECT * FROM patients WHERE email = ?`, [email]);
-            if (user.length === 0) {
+            const [doctor] = await db.execute(`SELECT * FROM doctors WHERE email = ?`, [email]);
+            const [receptionist] = await db.execute(`SELECT * FROM reception WHERE email = ?`, [email]);
+
+            if (user.length === 0 && doctor.length === 0 && receptionist.length === 0) {
                 return res.status(400).send('Invalid credentials');
             }
 
-            const userData = user[0];
+            const userData = user[0] || receptionist[0] || doctor[0];
+            let userType;
+            if(user[0]) {
+                userType = 'patient'
+            } else if(doctor[0]) {
+                userType = 'doctor'
+            } else if(receptionist[0]) {
+                userType = 'receptionist'
+            }
 
             // Sprawdzanie hasła
             const passwordMatch = await bcrypt.compare(password, userData.password);
@@ -77,7 +97,7 @@ app.post('/login', async (req, res) => {
             }
 
             // Generowanie tokena JWT
-            const token = jwt.sign({ id: userData.id, email: userData.email }, JWT_SECRET, { expiresIn: '1h' });
+            const token = jwt.sign({ id: userData.id, email: userData.email, type: userType }, JWT_SECRET, { expiresIn: '1h' });
 
             res.status(200).json({ token });
         } catch (error) {
