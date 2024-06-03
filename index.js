@@ -27,9 +27,17 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
+// Middleware do sprawdzania, czy użytkownik jest doktorem
+const isDoctor = (req, res, next) => {
+    if (req.user.type !== 'doctor') {
+        return res.sendStatus(403);
+    }
+    next();
+};
+
 app.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
     next();
 });
 
@@ -139,6 +147,26 @@ app.post('/reserve-visit', authenticateToken, async (req, res) => {
         [patient_id, doctor_id, timestamp]);
 
         res.status(200).send('Visit reserved successfully');
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+// Endpoint GET wizyty dla doktora
+app.get('/doctor/visits', authenticateToken, isDoctor, async (req, res) => {
+    const doctor_id = req.user.id;
+
+    try {
+        const [visits] = await db.execute(`
+            SELECT v.id, v.patient_id, p.name AS patient_name, p.surname AS patient_surname, v.visit_timestamp, v.status
+            FROM visits v
+            JOIN patients p ON v.patient_id = p.id
+            WHERE v.doctor_id = ?
+            ORDER BY v.visit_timestamp ASC
+        `, [doctor_id]);
+
+        res.status(200).json(visits);
     } catch (error) {
         console.error(error);
         res.status(500).send('Internal Server Error');
