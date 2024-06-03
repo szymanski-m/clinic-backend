@@ -114,6 +114,37 @@ app.get('/protected', authenticateToken, (req, res) => {
     res.status(200).send('This is a protected route');
 });
 
+// Endpoint GET doktorzy
+app.get('/doctors', async (req, res) => {
+    try {
+        const [doctors] = await db.execute(`SELECT id, name, surname FROM doctors`);
+        res.status(200).json(doctors);
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+// Endpoint POST Rezerwacja wizyty
+app.post('/reserve-visit', authenticateToken, async (req, res) => {
+    const { timestamp, doctor_id } = req.body;
+    const patient_id = req.user.id;
+
+    if (!timestamp || !doctor_id) {
+        return res.status(400).send('Bad Request');
+    }
+
+    try {
+        await db.execute(`INSERT INTO visits (patient_id, doctor_id, visit_timestamp, status, about_visit) VALUES (?, ?, ?, 'Oczekiwanie', '')`, 
+        [patient_id, doctor_id, timestamp]);
+
+        res.status(200).send('Visit reserved successfully');
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
 // Nasłuchiwanie na określonym porcie
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Server is running on port ${port}`));
