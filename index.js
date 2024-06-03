@@ -35,6 +35,14 @@ const isDoctor = (req, res, next) => {
     next();
 };
 
+// Middleware do sprawdzania, czy użytkownik jest pacjentem
+const isPatient = (req, res, next) => {
+    if (req.user.type !== 'patient') {
+        return res.sendStatus(403);
+    }
+    next();
+};
+
 app.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
@@ -165,6 +173,26 @@ app.get('/doctor/visits', authenticateToken, isDoctor, async (req, res) => {
             WHERE v.doctor_id = ?
             ORDER BY v.visit_timestamp ASC
         `, [doctor_id]);
+
+        res.status(200).json(visits);
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+// Endpoint GET wizyty dla pacjenta
+app.get('/patient/visits', authenticateToken, isPatient, async (req, res) => {
+    const patient_id = req.user.id;
+
+    try {
+        const [visits] = await db.execute(`
+            SELECT v.id, v.doctor_id, d.name AS doctor_name, d.surname AS doctor_surname, v.visit_timestamp, v.status
+            FROM visits v
+            JOIN doctors d ON v.doctor_id = d.id
+            WHERE v.patient_id = ?
+            ORDER BY v.visit_timestamp ASC
+        `, [patient_id]);
 
         res.status(200).json(visits);
     } catch (error) {
