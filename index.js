@@ -188,19 +188,18 @@ app.get("/doctors", async (req, res) => {
   }
 });
 
-// Endpoint POST Rezerwacja wizyty
+// Endpoint POST Rezerwacja wizyty (Rafał)
 app.post("/reserve-visit", authenticateToken, async (req, res) => {
-  const { timestamp, doctor_id } = req.body;
+  const { doctor, description } = req.body;
   const patient_id = req.user.id;
-
-  if (!timestamp || !doctor_id) {
+  if (!doctor || !description) {
     return res.status(400).send("Bad Request");
   }
 
   try {
     await db.execute(
-      `INSERT INTO visits (patient_id, doctor_id, visit_timestamp, status, about_visit) VALUES (?, ?, ?, 'Oczekiwanie', '')`,
-      [patient_id, doctor_id, timestamp]
+      `INSERT INTO visitsReported (patient_id, doctor_id, about_visit) VALUES (?, ?, ?)`,
+      [patient_id, doctor, description]
     );
 
     res.status(200).send("Visit reserved successfully");
@@ -250,6 +249,69 @@ app.get("/patient/visits", authenticateToken, isPatient, async (req, res) => {
     );
 
     res.status(200).json(visits);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+// Endpoint GET wizyty zgłoszone dla recepcji (Rafał)
+app.get("/reception/reportedvisits", authenticateToken, async (req, res) => {
+  try {
+    const [visits] = await db.execute(
+      `
+      SELECT 
+      v.id, 
+      d.surname AS doctor_surname, 
+      p.name AS patient_name, 
+      p.surname AS patient_surname, 
+      p.pesel AS patient_pesel,
+      v.patient_id,
+      v.doctor_id,
+      v.about_visit
+    FROM 
+      visitsReported v
+    JOIN 
+      doctors d ON v.doctor_id = d.id
+    JOIN 
+      patients p ON v.patient_id = p.id
+    ORDER BY 
+      v.id ASC
+          `
+    );
+
+    res.status(200).json(visits);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+// Endpoint zatwierdzania wizyty (Rafał)
+app.post("/acceptVisit", async (req, res) => {
+  const { doctorId, patientId, aboutVisit, date, hour, visitId } = req.body;
+  console.log(req.body);
+  try {
+    await db.execute(
+      `INSERT INTO visitsAccept (doctor_id, patient_id, about, data, date_hour, status) VALUES (?, ?, ?, ?, ?, 'oczekujaca')`,
+      [doctorId, patientId, aboutVisit, date, hour]
+    );
+    await db.execute(`DELETE FROM visitsReported WHERE id = ?`, [visitId]);
+    res.status(200).send("Visit Accepted!");
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+app.get("/loadPatientDataToPage", async (req, res) => {
+  const { email } = req.query;
+  try {
+    const [patientData] = await db.execute(
+      `SELECT name, surname, gender, birth_date, pesel, phone FROM patients WHERE email = ?`,
+      [email]
+    );
+    res.status(200).json(patientData);
   } catch (error) {
     console.error(error);
     res.status(500).send("Internal Server Error");
