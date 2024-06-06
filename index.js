@@ -287,6 +287,60 @@ app.get("/reception/reportedvisits", authenticateToken, async (req, res) => {
   }
 });
 
+// Endpoint GET wizyty zaakceptowane dla recepcji (Rafał)
+app.get("/reception/acceptedvisits", authenticateToken, async (req, res) => {
+  try {
+    const [visits] = await db.execute(
+      `
+      SELECT 
+      v.id, 
+      d.surname AS doctor_surname, 
+      p.name AS patient_name, 
+      p.surname AS patient_surname, 
+      p.pesel AS patient_pesel,
+      v.patient_id,
+      v.doctor_id,
+      v.about,
+      v.status,
+      v.data,
+      v.date_hour
+    FROM 
+      visitsAccept v
+    JOIN 
+      doctors d ON v.doctor_id = d.id
+    JOIN 
+      patients p ON v.patient_id = p.id
+    ORDER BY 
+      v.id ASC
+          `
+    );
+
+
+
+//Get wizyty dla pacjenta (Rafał)
+app.get("/patient/visit", authenticateToken, isPatient, async (req, res) => {
+  const patient_id = req.user.id;
+
+  try {
+    const [visits] = await db.execute(
+      `
+            SELECT v.data, d.name AS doctor_name, d.surname AS doctor_surname,v.about_visit, v.status
+            FROM visits v
+            JOIN doctors d ON v.doctor_id = d.id
+            WHERE v.patient_id = ?
+        `,
+      [patient_id]
+    );
+
+    res.status(200).json(visits);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+
+
 // Endpoint zatwierdzania wizyty (Rafał)
 app.post("/acceptVisit", async (req, res) => {
   const { doctorId, patientId, aboutVisit, date, hour, visitId } = req.body;
@@ -312,6 +366,18 @@ app.get("/loadPatientDataToPage", async (req, res) => {
       [email]
     );
     res.status(200).json(patientData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+// Obsługa żądania DELETE na serwerze Node.js
+app.delete("/reception/reportedvisits/:visitId", async (req, res) => {
+  const visitId = req.params.visitId;
+  try {
+    await db.execute(`DELETE FROM visitsAccept WHERE id = ?`, [visitId]);
+    res.status(200).send("Visit Deleted!");
   } catch (error) {
     console.error(error);
     res.status(500).send("Internal Server Error");
