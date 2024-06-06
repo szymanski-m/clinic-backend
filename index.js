@@ -405,6 +405,37 @@ app.delete("/reception/reportedvisits/:visitId", async (req, res) => {
   }
 });
 
+// Get pokazywanie danych o wizycie dla doktora (Rafał)
+app.get("/showdateaboutvisit:visitId", authenticateToken, async (req, res) => {
+  const { visitId } = req.query;
+  try {
+    const [dateaboutpatient] = await db.execute(
+      `
+      SELECT 
+      v.id, 
+      p.name AS patient_name, 
+      p.surname AS patient_surname, 
+      p.pesel AS patient_pesel,
+      p.birt_date AS birth_date,
+      p.gender AS gender,
+      v.about,
+    FROM 
+      visitsAccept v
+    JOIN 
+      patients p ON v.patient_id = p.id
+      WHERE id=? 
+          `[visitId]
+    );
+    res.status(200).json(dateaboutpatient);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+
+
+
 // Nasłuchiwanie na określonym porcie
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Server is running on port ${port}`));
