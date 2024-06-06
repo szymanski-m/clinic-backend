@@ -192,6 +192,7 @@ app.get("/doctors", async (req, res) => {
 app.post("/reserve-visit", authenticateToken, async (req, res) => {
   const { doctor, description } = req.body;
   const patient_id = req.user.id;
+  console.log(req.body);
   if (!doctor || !description) {
     return res.status(400).send("Bad Request");
   }
@@ -326,17 +327,28 @@ app.get("/patient/visit", authenticateToken, isPatient, async (req, res) => {
   const patient_id = req.user.id;
 
   try {
-    const [visits] = await db.execute(
-      `
-            SELECT v.data, d.name AS doctor_name, d.surname AS doctor_surname,v.about_visit, v.status
-            FROM visits v
-            JOIN doctors d ON v.doctor_id = d.id
-            WHERE v.patient_id = ?
-        `,
+    const [visitsR] = await db.execute(
+      `SELECT v.data, d.name AS doctor_name, d.surname AS doctor_surname, v.about_visit, v.status
+        FROM 
+        visitsReported v
+        JOIN 
+        doctors d ON v.doctor_id = d.id
+        WHERE
+        v.patient_id = ?`,
+      [patient_id]
+    );
+    const [visitsA] = await db.execute(
+      `SELECT v.data, v.date_hour, d.name AS doctor_name, d.surname AS doctor_surname, v.about,  'Zatwierdzona' AS status
+      FROM 
+        visitsAccept v
+      JOIN 
+        doctors d ON v.doctor_id = d.id
+      WHERE
+      v.patient_id = ?`,
       [patient_id]
     );
 
-    res.status(200).json(visits);
+    res.status(200).json({ visitsR: visitsR, visitsA: visitsA });
   } catch (error) {
     console.error(error);
     res.status(500).send("Internal Server Error");
@@ -376,6 +388,7 @@ app.get("/loadPatientDataToPage", async (req, res) => {
 
 // Obsługa żądania DELETE na serwerze Node.js
 app.delete("/reception/reportedvisits/:visitId", async (req, res) => {
+  
   const visitId = req.params.visitId;
   try {
     await db.execute(`DELETE FROM visitsAccept WHERE id = ?`, [visitId]);
