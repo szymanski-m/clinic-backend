@@ -5,11 +5,17 @@ import express from "express";
 import bodyParser from "body-parser";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-
+import cors from 'cors'
 const app = express();
 
-// Ustawienie bodyParser do parsowania ciała żądania
+
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
+})
 app.use(bodyParser.json());
+app.options('*', cors())
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 
