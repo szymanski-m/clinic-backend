@@ -5,17 +5,19 @@ import express from "express";
 import bodyParser from "body-parser";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import cors from 'cors'
+import cors from "cors";
 const app = express();
-
 
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept"
+  );
   next();
-})
+});
 app.use(bodyParser.json());
-app.options('*', cors())
+app.options("*", cors());
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 
@@ -394,7 +396,6 @@ app.get("/loadPatientDataToPage", async (req, res) => {
 
 // Obsługa żądania DELETE na serwerze Node.js
 app.delete("/reception/reportedvisits/:visitId", async (req, res) => {
-  
   const visitId = req.params.visitId;
   try {
     await db.execute(`DELETE FROM visitsAccept WHERE id = ?`, [visitId]);
@@ -406,35 +407,38 @@ app.delete("/reception/reportedvisits/:visitId", async (req, res) => {
 });
 
 // Get pokazywanie danych o wizycie dla doktora (Rafał)
-app.get("/showdateaboutvisit:visitId", authenticateToken, async (req, res) => {
-  const { visitId } = req.query;
+app.get("/showdateaboutvisit/:visitId", authenticateToken, async (req, res) => {
+  const { visitId } = req.params;
+  console.log(visitId);
   try {
     const [dateaboutpatient] = await db.execute(
       `
       SELECT 
-      v.id, 
+ 
       p.name AS patient_name, 
       p.surname AS patient_surname, 
       p.pesel AS patient_pesel,
-      p.birt_date AS birth_date,
+      p.birth_date AS birth_date,
       p.gender AS gender,
-      v.about,
+      v.about
     FROM 
       visitsAccept v
     JOIN 
       patients p ON v.patient_id = p.id
-      WHERE id=? 
-          `[visitId]
+      WHERE v.id=? 
+          `,
+      [visitId]
     );
-    res.status(200).json(dateaboutpatient);
+    if (dateaboutpatient.length > 0) {
+      res.status(200).json(dateaboutpatient);
+    } else {
+      res.status(404).json({ message: "No patient data found." });
+    }
   } catch (error) {
     console.error(error);
     res.status(500).send("Internal Server Error");
   }
 });
-
-
-
 
 // Nasłuchiwanie na określonym porcie
 const port = process.env.PORT || 3000;
