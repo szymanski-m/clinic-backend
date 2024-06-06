@@ -314,10 +314,14 @@ app.get("/reception/acceptedvisits", authenticateToken, async (req, res) => {
       v.id ASC
           `
     );
+    res.status(200).json(visits);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
 
-
-
-//Get wizyty dla pacjenta (Rafał)
+//Get wizyty dla pacjenta (Rafal)
 app.get("/patient/visit", authenticateToken, isPatient, async (req, res) => {
   const patient_id = req.user.id;
 
@@ -338,8 +342,6 @@ app.get("/patient/visit", authenticateToken, isPatient, async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
-
-
 
 // Endpoint zatwierdzania wizyty (Rafał)
 app.post("/acceptVisit", async (req, res) => {
