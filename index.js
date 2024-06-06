@@ -6,6 +6,8 @@ import bodyParser from "body-parser";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import cors from "cors";
+import dayjs from 'dayjs';
+
 const app = express();
 
 app.use((req, res, next) => {
@@ -373,6 +375,29 @@ app.post("/acceptVisit", async (req, res) => {
       [doctorId, patientId, aboutVisit, date, hour]
     );
     await db.execute(`DELETE FROM visitsReported WHERE id = ?`, [visitId]);
+    res.status(200).send("Visit Accepted!");
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+app.post("/finishVisit/:visitId", async (req, res) => {
+  const visitId = req.params.visitId
+  const diagnosis = req.body.diagnosis;
+  try {
+    const [visitInfo, rows] = await db.execute(`SELECT * FROM visitsAccept WHERE id = ${visitId}`)
+    console.log(visitInfo)
+    await db.execute(
+      `INSERT INTO visitsCompleted (id_doctor, id_patient, about, diagnosis, date, date_hour) VALUES 
+      (${visitInfo[0].doctor_id},
+      ${visitInfo[0].patient_id},
+      "${visitInfo[0].about}",
+      "${diagnosis}",
+      "${dayjs(visitInfo[0].data).format('YYYY-MM-DD')}",
+      "${visitInfo[0].date_hour}"); `
+    );
+    await db.execute(`DELETE FROM visitsCompleted WHERE id = ?`, [visitId]);
     res.status(200).send("Visit Accepted!");
   } catch (error) {
     console.error(error);
